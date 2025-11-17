@@ -1,69 +1,121 @@
 # MediConnect
 
-## Informações do Projeto
+Descrição
+-----------
+Aplicação frontend em React + TypeScript (Vite) para gerenciar conversas omnichannel e envio de emails. Inclui um worker Node.js para processar a fila de emails via SMTP e endpoints administrativos para retry/delete.
 
-### URL: https://lovable.dev/projects/903dfe71-74bc-45fc-a557-072e69ea857e
+Conteúdo deste README
+----------------------
+- Como configurar o ambiente de desenvolvimento
+- Variáveis de ambiente necessárias (frontend e worker)
+- Como rodar frontend e worker localmente
+- Migrações e notas sobre o banco (Supabase)
+- Como commitar e enviar para um repositório remoto (GitHub)
 
-### Como editar este código?
-Existem várias maneiras de editar sua aplicação.
+Requisitos
+----------
+- Node.js 18+ e npm/yarn/pnpm
+- Supabase (ou Postgres compatível)
+- Acesso à chave `SERVICE_ROLE` do Supabase para rodar o worker
 
-### 1. Usando a plataforma Lovable
-Basta visitar o Projeto Lovable e começar a fazer suas alterações por lá. As modificações feitas na plataforma serão automaticamente enviadas (comitadas) para este repositório.
+Instalação (local)
+------------------
+Abra um terminal na raiz do projeto e execute:
 
-### 2. Usando sua IDE de preferência (localmente)
-Se você prefere trabalhar no seu ambiente local, pode clonar este repositório e enviar as mudanças (fazer um push). As alterações enviadas também serão refletidas na plataforma Lovable. O único requisito é ter o Node.js e o npm instalados — recomendamos a instalação via nvm.
+```cmd
+cd /d c:\dev\med-care-unify
+npm install
+```
 
-Siga estes passos:
+Variáveis de ambiente
+----------------------
+Frontend (arquivo `.env` ou variáveis do ambiente usadas pelo Vite):
 
-Bash
+- `VITE_SUPABASE_URL` — URL do seu projeto Supabase
+- `VITE_SUPABASE_ANON_KEY` — anon/public key do Supabase (frontend)
+- `VITE_RETRY_ENDPOINT` — (opcional) URL do servidor de retry (ex: `http://localhost:3001`)
+- `VITE_RETRY_SECRET` — (opcional) secret para o endpoint de retry
+- `VITE_ADMIN_ENDPOINT` — (opcional) URL do endpoint administrativo (delete)
+- `VITE_ADMIN_SECRET` — (opcional) secret para o endpoint administrativo
 
-# Passo 1: Clone o repositório usando a URL Git do projeto.
-git clone <SUA_URL_GIT>
+Worker / Admin server (em `email-worker/`):
 
-# Passo 2: Navegue até o diretório do projeto.
-cd <NOME_DO_SEU_PROJETO>
+- `SUPABASE_URL` — URL do Supabase
+- `SUPABASE_SERVICE_ROLE_KEY` — service role key (necessário para operações administrativas e para o worker)
+- `RETRY_SECRET` — secret usado pelos endpoints `/retry` e `/delete` (proteger acesso)
+- `RETRY_SERVER_PORT` — porta do servidor de retry/admin (opcional, default `3001`)
+- `SMTP_*` — (opcional) overrides de SMTP: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` (útil para testes locais)
 
-# Passo 3: Instale as dependências necessárias.
-npm i
+Como rodar em desenvolvimento
+----------------------------
 
-# Passo 4: Inicie o servidor de desenvolvimento com recarregamento automático e pré-visualização instantânea.
+1) Frontend (dev):
+
+```cmd
+cd /d c:\dev\med-care-unify
 npm run dev
+```
 
-### 3. Editando um arquivo diretamente no GitHub
+2) Worker / Admin server (opcional, para retry/delete):
 
-Vá até o(s) arquivo(s) que deseja editar.
+```cmd
+cd /d c:\dev\med-care-unify\email-worker
+set SUPABASE_URL=https://<seu-projeto>.supabase.co
+set SUPABASE_SERVICE_ROLE_KEY=<SUA_SERVICE_ROLE_KEY>
+set RETRY_SECRET=<uma_senha_forte>
+node server.js
+```
 
-Clique no botão "Editar" (o ícone de lápis) no canto superior direito da visualização do arquivo.
+Observação: o worker principal também pode ser executado diretamente via `node lib.js` / `node index.js` dependendo do script presente no `package.json` do `email-worker`.
 
-Faça suas alterações e confirme as modificações (dando commit).
+Migrações / Banco (Supabase)
+-----------------------------
+- As migrações SQL geradas estão em `supabase/migrations/`.
+- Antes de usar as novas features (ex.: `channels.config`, `assignee_id`) aplique as migrations no seu banco.
 
-### 4. Usando o GitHub Codespaces
+Usando o Supabase CLI (exemplo):
 
-Vá para a página principal do seu repositório.
+```cmd
+supabase db push
+```
 
-Clique no botão verde "Code".
+Ou cole os arquivos SQL individualmente no SQL Editor do painel do Supabase e execute na ordem.
 
-Selecione a aba "Codespaces".
+Operações administrativas seguras
+--------------------------------
+- Algumas ações sensíveis (ex.: excluir mensagens) podem falhar no frontend devido a RLS (Row Level Security). Para isso há um admin endpoint no `email-worker/server.js` protegido por `RETRY_SECRET` que executa operações com a `SUPABASE_SERVICE_ROLE_KEY`.
+- Configure `VITE_ADMIN_ENDPOINT` e `VITE_ADMIN_SECRET` no frontend para permitir que a UI chame o endpoint `/delete` do servidor.
 
-Clique em "New codespace" para iniciar um novo ambiente de desenvolvimento na nuvem.
+Git: commitar e enviar para Github
+----------------------------------
+Configure seu usuário Git (local ou global) para evitar erros ao commitar:
 
-Edite os arquivos diretamente no Codespace e, ao terminar, faça o commit e o push das suas mudanças.
+```cmd
+git config --global user.name "Seu Nome"
+git config --global user.email "seu.email@exemplo.com"
+```
 
-Quais tecnologias foram usadas neste projeto?
-Este projeto foi construído com as seguintes tecnologias:
+Commit e push:
 
-### Vite
+```cmd
+cd /d c:\dev\med-care-unify
+git add .
+git commit -m "Descrição das mudanças"
+git remote add origin https://github.com/SEU_USUARIO/NOME_REPO.git
+git push -u origin main
+```
 
-### TypeScript
+Se preferir criar o repositório via GitHub CLI (`gh`) posso gerar os comandos pra você.
 
-### React
+Dicas de debugging rápido
+-------------------------
+- Verifique o Console do navegador e Network para chamadas ao Supabase.
+- Para problemas do worker, veja os logs do `email-worker/server.js` — ele exibe quando usa `channels.config` ou fallback para `email_channels`.
+- Se operações de escrita falham no frontend (ex.: delete/atribuir), verifique as políticas RLS no Supabase ou use o endpoint admin.
 
-### shadcn-ui
+Contato / Suporte
+-----------------
+Se quiser que eu gere políticas RLS recomendadas ou um script para aplicar as migrations automaticamente, me avise que eu implemento em seguida.
 
-### Tailwind CSS
-
-## Como faço para publicar este projeto?
-É simples! Abra o Lovable e clique em Share -> Publish.
-
-## Posso conectar um domínio personalizado ao meu projeto Lovable?
-Sim, é possível! Para conectar um domínio, navegue até Project > Settings > Domains e clique em Connect Domain.
+----
+Arquivo atualizado automaticamente com instruções essenciais para desenvolvimento e deploy.
